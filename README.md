@@ -32,15 +32,70 @@ swift build
 swift run
 ```
 
+### Debugging with Xcode
+
+If you're debugging the application in Xcode, you need to set a custom working directory to ensure the `.env` file is found correctly:
+
+1. Open the project in Xcode by either:
+   - Opening the Package.swift file directly with Xcode
+   - Opening the project folder in Xcode (File > Open... and select the folder)
+   - Using "Open with Xcode" from Finder context menu on the project folder
+2. Xcode will automatically create a project and schemes for the Swift package
+3. Select the scheme for your executable target
+4. Choose "Edit Scheme..." from the scheme dropdown menu
+5. In the "Run" section, go to the "Options" tab
+6. Check "Use custom working directory" and set it to the directory containing your `.env` file (typically the project root directory)
+7. Click "Close" to save the changes
+
+While our application includes logic to find the project root by looking for Package.swift, setting the working directory explicitly in Xcode ensures the most reliable behavior during debugging.
+
 ## How It Works
 
 The application:
 
-1. Determines the current working directory:
-   - First tries to get it from the ProcessInfo "PWD" environment variable
-   - Falls back to FileManager.default.currentDirectoryPath if PWD is not set
+1. Determines the current working directory using a multi-step approach:
+   - First tries to find the project root by looking for the Package.swift file
+   - Then tries to get it from the ProcessInfo "PWD" environment variable
+   - Finally falls back to FileManager.default.currentDirectoryPath if all else fails
 2. Loads the environment variables from the `.env` file in the determined directory
 3. Displays the loaded environment variables (with password masked for security)
+
+### Finding the Project Root Directory
+
+The application includes a helper method to find the project root directory by looking for the Package.swift file:
+
+```swift
+func findProjectRootDirectory() -> String? {
+    // Start with the current directory
+    var currentPath = FileManager.default.currentDirectoryPath
+    
+    // Check if Package.swift exists in the current directory
+    let packageSwiftPath = URL(fileURLWithPath: currentPath).appendingPathComponent("Package.swift").path
+    if FileManager.default.fileExists(atPath: packageSwiftPath) {
+        return currentPath
+    }
+    
+    // If not found, try to navigate up the directory tree
+    // Get the executable path and work backwards
+    let executablePath = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().path
+    currentPath = executablePath
+    
+    // Try up to 5 parent directories
+    for _ in 0..<5 {
+        let packageSwiftPath = URL(fileURLWithPath: currentPath).appendingPathComponent("Package.swift").path
+        if FileManager.default.fileExists(atPath: packageSwiftPath) {
+            return currentPath
+        }
+        
+        // Move up one directory
+        currentPath = URL(fileURLWithPath: currentPath).deletingLastPathComponent().path
+    }
+    
+    return nil
+}
+```
+
+This is particularly useful when running the application from different contexts (e.g., Xcode, terminal, etc.) as it ensures the `.env` file is always found correctly.
 
 ### Accessing Environment Variables
 
@@ -78,6 +133,6 @@ The swift-dotenv package (version 2.1.0 or higher) provides two ways to access e
 
 ## Notes
 
-- Make sure the `.env` file is in the same directory where you run the application
+- Make sure the `.env` file is in the root directory of your project (where Package.swift is located)
 - For security reasons, never commit your actual `.env` file with sensitive information to version control
 - The application will exit with an error if the `.env` file cannot be found or loaded 

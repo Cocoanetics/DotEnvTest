@@ -12,23 +12,7 @@ print("--------------------------------------------")
 
 // Try to load the .env file from the current directory
 do {
-	// First try to get the current working directory from ProcessInfo "PWD" environment variable
-	let currentDirectory: String
-	if let pwd = ProcessInfo.processInfo.environment["PWD"] {
-		currentDirectory = pwd
-		print("Current directory from ProcessInfo PWD: \(currentDirectory)")
-	} else {
-		// Fallback to FileManager.default.currentDirectoryPath if PWD is not set
-		currentDirectory = FileManager.default.currentDirectoryPath
-		print("Current directory from FileManager: \(currentDirectory)")
-	}
-	
-	// Construct the path to the .env file
-	let dotEnvURL = URL(fileURLWithPath: currentDirectory).appendingPathComponent(".env")
-	print("Looking for .env file at: \(dotEnvURL.path)")
-	
-	// Load the .env file from the determined path
-	try Dotenv.configure(atPath: dotEnvURL.path)
+	try Dotenv.configure()
 	print("✅ Successfully loaded environment variables from .env file")
 	
 	// Display the loaded environment variables
@@ -59,8 +43,40 @@ do {
 	print("IMAP_USERNAME: \(Dotenv.imapUsername?.stringValue ?? "Not found")")
 	print("IMAP_PASSWORD: \(Dotenv.imapPassword != nil ? "********" : "Not found")")
 	
+} catch let error as Dotenv.LoadingFailure {
+	switch error {
+		case .environmentFileIsMissing:
+			print("❌ Error: .env file not found!")
+			print("\nPossible solutions:")
+			print("1. Make sure the .env file exists in the project root directory")
+			print("2. If running from Xcode, did you set a custom working directory in the scheme?")
+			print("   - Edit Scheme > Run > Options > Check 'Use custom working directory'")
+			print("   - Set it to the directory containing your .env file (project root)")
+		case .unableToReadEnvironmentFile:
+			print("❌ Error: Unable to read the .env file!")
+			print("\nPossible solutions:")
+			print("1. Check the file permissions")
+			print("2. Make sure the file is not corrupted")
+			print("3. Verify the file is a valid text file")
+	}
+	exit(1)
+} catch let error as Dotenv.DecodingFailure {
+	switch error {
+		case .malformedKeyValuePair:
+			print("❌ Error: Malformed key-value pair in .env file!")
+			print("\nPossible solutions:")
+			print("1. Check the format of your .env file")
+			print("2. Each line should be in the format KEY=VALUE")
+			print("3. Make sure there are no spaces around the equals sign")
+		case .emptyKeyValuePair(let pair):
+			print("❌ Error: Empty key or value in .env file: \(pair)")
+			print("\nPossible solutions:")
+			print("1. Make sure neither the key nor the value is empty")
+			print("2. If you need an empty value, use KEY=\"\" format")
+	}
+	exit(1)
 } catch {
-	print("❌ Error loading .env file: \(error)")
+	print("❌ Unexpected error loading .env file: \(error)")
 	exit(1)
 }
 
