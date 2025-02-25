@@ -26,8 +26,15 @@ do {
 		// Access environment variables directly from Dotenv
 		if let value = Dotenv[varName] {
 			// Mask the password for security
-			let displayValue = varName == "IMAP_PASSWORD" ? "********" : value.stringValue
-			print("\(varName): \(displayValue)")
+			if varName == "IMAP_PASSWORD" {
+				print("\(varName): ********")
+			} else if case let .string(stringValue) = value {
+				print("\(varName): \(stringValue)")
+			} else if case let .integer(intValue) = value {
+				print("\(varName): \(intValue)")
+			} else {
+				print("\(varName): \(value.stringValue)")
+			}
 		} else {
 			print("\(varName): Not found")
 		}
@@ -38,10 +45,29 @@ do {
 	print("------------------------------------------------------")
 	
 	// Note: Dynamic member lookup uses camelCase property names
-	print("IMAP_HOST: \(Dotenv.imapHost?.stringValue ?? "Not found")")
-	print("IMAP_PORT: \(Dotenv.imapPort?.stringValue ?? "Not found")")
-	print("IMAP_USERNAME: \(Dotenv.imapUsername?.stringValue ?? "Not found")")
-	print("IMAP_PASSWORD: \(Dotenv.imapPassword != nil ? "********" : "Not found")")
+	if case let .string(host) = Dotenv.imapHost {
+		print("IMAP_HOST: \(host)")
+	} else {
+		print("IMAP_HOST: Not found")
+	}
+	
+	if case let .integer(port) = Dotenv.imapPort {
+		print("IMAP_PORT: \(port)")
+	} else {
+		print("IMAP_PORT: Not found")
+	}
+	
+	if case let .string(username) = Dotenv.imapUsername {
+		print("IMAP_USERNAME: \(username)")
+	} else {
+		print("IMAP_USERNAME: Not found")
+	}
+	
+	if Dotenv.imapPassword != nil {
+		print("IMAP_PASSWORD: ********")
+	} else {
+		print("IMAP_PASSWORD: Not found")
+	}
 	
 } catch let error as Dotenv.LoadingFailure {
 	switch error {
